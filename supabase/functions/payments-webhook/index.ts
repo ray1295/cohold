@@ -1,5 +1,6 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 // @ts-ignore - Deno imports
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+// @ts-ignore - Deno imports 
 import Stripe from "https://esm.sh/stripe@13.6.0?target=deno";
 // @ts-ignore - Deno imports
 import { createClient, SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -108,7 +109,7 @@ async function handleSubscriptionCreated(supabaseClient: SupabaseClient, event: 
       console.error('Unable to find associated user:', error);
       return new Response(
         JSON.stringify({ error: "Unable to find associated user" }),
-        { 
+        {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
@@ -158,7 +159,7 @@ async function handleSubscriptionCreated(supabaseClient: SupabaseClient, event: 
     console.error('Error creating subscription:', error);
     return new Response(
       JSON.stringify({ error: "Failed to create subscription" }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -167,7 +168,7 @@ async function handleSubscriptionCreated(supabaseClient: SupabaseClient, event: 
 
   return new Response(
     JSON.stringify({ message: "Subscription created successfully" }),
-    { 
+    {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     }
@@ -195,7 +196,7 @@ async function handleSubscriptionUpdated(supabaseClient: SupabaseClient, event: 
     console.error('Error updating subscription:', error);
     return new Response(
       JSON.stringify({ error: "Failed to update subscription" }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -204,7 +205,7 @@ async function handleSubscriptionUpdated(supabaseClient: SupabaseClient, event: 
 
   return new Response(
     JSON.stringify({ message: "Subscription updated successfully" }),
-    { 
+    {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     }
@@ -217,7 +218,7 @@ async function handleSubscriptionDeleted(supabaseClient: SupabaseClient, event: 
 
   try {
     await updateSubscriptionStatus(supabaseClient, subscription.id, "canceled");
-    
+
     // If we have email in metadata, update user's subscription status
     if (subscription?.metadata?.email) {
       await supabaseClient
@@ -228,7 +229,7 @@ async function handleSubscriptionDeleted(supabaseClient: SupabaseClient, event: 
 
     return new Response(
       JSON.stringify({ message: "Subscription deleted successfully" }),
-      { 
+      {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -237,7 +238,7 @@ async function handleSubscriptionDeleted(supabaseClient: SupabaseClient, event: 
     console.error('Error deleting subscription:', error);
     return new Response(
       JSON.stringify({ error: "Failed to process subscription deletion" }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -249,19 +250,19 @@ async function handleCheckoutSessionCompleted(supabaseClient: SupabaseClient, ev
   const session = event.data.object;
   console.log('Handling checkout session completed:', session.id);
   console.log('Full session data:', JSON.stringify(session, null, 2));
-  
-  const subscriptionId = typeof session.subscription === 'string' 
-    ? session.subscription 
+
+  const subscriptionId = typeof session.subscription === 'string'
+    ? session.subscription
     : session.subscription?.id;
-  
+
   console.log('Extracted subscriptionId:', subscriptionId);
   console.log('Session metadata:', JSON.stringify(session.metadata, null, 2));
-  
+
   if (!subscriptionId) {
     console.log('No subscription ID found in checkout session');
     return new Response(
       JSON.stringify({ message: "No subscription in checkout session" }),
-      { 
+      {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -274,27 +275,27 @@ async function handleCheckoutSessionCompleted(supabaseClient: SupabaseClient, ev
       ...session.metadata,
       checkoutSessionId: session.id
     });
-    
+
     // Fetch the current subscription from Stripe to get the latest status
     const stripeSubscription = await stripe.subscriptions.retrieve(subscriptionId);
     console.log('Retrieved Stripe subscription status:', stripeSubscription.status);
-    
+
     const updatedStripeSubscription = await stripe.subscriptions.update(
       subscriptionId,
-      { 
+      {
         metadata: {
           ...session.metadata,
           checkoutSessionId: session.id
         }
       }
     );
-    
+
     console.log('Successfully updated Stripe subscription:', updatedStripeSubscription.id);
     console.log('Updated Stripe metadata:', JSON.stringify(updatedStripeSubscription.metadata, null, 2));
 
     console.log('Attempting to update subscription in Supabase with stripe_id:', subscriptionId);
     console.log('User ID being set:', session.metadata?.userId || session.metadata?.user_id);
-    
+
     const supabaseUpdateResult = await supabaseClient
       .from("subscriptions")
       .update({
@@ -309,20 +310,20 @@ async function handleCheckoutSessionCompleted(supabaseClient: SupabaseClient, ev
         cancel_at_period_end: stripeSubscription.cancel_at_period_end
       })
       .eq("stripe_id", subscriptionId);
-    
+
     console.log('Supabase update result:', JSON.stringify(supabaseUpdateResult, null, 2));
-    
+
     if (supabaseUpdateResult.error) {
       console.error('Error updating Supabase subscription:', supabaseUpdateResult.error);
       throw new Error(`Supabase update failed: ${supabaseUpdateResult.error.message}`);
     }
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         message: "Checkout session completed successfully",
-        subscriptionId 
+        subscriptionId
       }),
-      { 
+      {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -333,7 +334,7 @@ async function handleCheckoutSessionCompleted(supabaseClient: SupabaseClient, ev
     console.error('Error stack:', error.stack);
     return new Response(
       JSON.stringify({ error: "Failed to process checkout completion", details: error.message }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -344,9 +345,9 @@ async function handleCheckoutSessionCompleted(supabaseClient: SupabaseClient, ev
 async function handleInvoicePaymentSucceeded(supabaseClient: SupabaseClient, event: any) {
   const invoice = event.data.object;
   console.log('Handling invoice payment succeeded:', invoice.id);
-  
-  const subscriptionId = typeof invoice.subscription === 'string' 
-    ? invoice.subscription 
+
+  const subscriptionId = typeof invoice.subscription === 'string'
+    ? invoice.subscription
     : invoice.subscription?.id;
 
   try {
@@ -376,7 +377,7 @@ async function handleInvoicePaymentSucceeded(supabaseClient: SupabaseClient, eve
 
     return new Response(
       JSON.stringify({ message: "Invoice payment succeeded" }),
-      { 
+      {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -385,7 +386,7 @@ async function handleInvoicePaymentSucceeded(supabaseClient: SupabaseClient, eve
     console.error('Error processing successful payment:', error);
     return new Response(
       JSON.stringify({ error: "Failed to process successful payment" }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -396,9 +397,9 @@ async function handleInvoicePaymentSucceeded(supabaseClient: SupabaseClient, eve
 async function handleInvoicePaymentFailed(supabaseClient: SupabaseClient, event: any) {
   const invoice = event.data.object;
   console.log('Handling invoice payment failed:', invoice.id);
-  
-  const subscriptionId = typeof invoice.subscription === 'string' 
-    ? invoice.subscription 
+
+  const subscriptionId = typeof invoice.subscription === 'string'
+    ? invoice.subscription
     : invoice.subscription?.id;
 
   try {
@@ -432,7 +433,7 @@ async function handleInvoicePaymentFailed(supabaseClient: SupabaseClient, event:
 
     return new Response(
       JSON.stringify({ message: "Invoice payment failed" }),
-      { 
+      {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -441,7 +442,7 @@ async function handleInvoicePaymentFailed(supabaseClient: SupabaseClient, event:
     console.error('Error processing failed payment:', error);
     return new Response(
       JSON.stringify({ error: "Failed to process failed payment" }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
@@ -453,32 +454,32 @@ async function handleInvoicePaymentFailed(supabaseClient: SupabaseClient, event:
 serve(async (req: Request) => {
   console.log('Received webhook request');
   console.log('Method:', req.method);
-  
+
   // Log headers in a way that works with the current TypeScript configuration
   const headersObj: Record<string, string> = {};
   req.headers.forEach((value, key) => {
     headersObj[key] = value;
   });
   console.log('Headers:', JSON.stringify(headersObj, null, 2));
-  
+
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     console.log('Handling OPTIONS request');
-    return new Response(null, { 
+    return new Response(null, {
       status: 204,
-      headers: corsHeaders 
+      headers: corsHeaders
     });
   }
 
   try {
     const signature = req.headers.get('stripe-signature');
     console.log('Stripe signature:', signature);
-    
+
     if (!signature) {
       console.error('No Stripe signature found in headers');
       return new Response(
         JSON.stringify({ error: "No signature found" }),
-        { 
+        {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
@@ -487,15 +488,15 @@ serve(async (req: Request) => {
 
     const body = await req.text();
     console.log('Request body:', body);
-    
+
     // @ts-ignore - Deno is available in the Supabase Edge Functions environment
     const webhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
-    
+
     if (!webhookSecret) {
       console.error('Webhook secret not configured in environment variables');
       return new Response(
         JSON.stringify({ error: "Webhook secret not configured" }),
-        { 
+        {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
@@ -503,7 +504,7 @@ serve(async (req: Request) => {
     }
 
     let event;
-    
+
     try {
       console.log('Attempting to verify Stripe signature');
       event = await stripe.webhooks.constructEventAsync(
@@ -516,7 +517,7 @@ serve(async (req: Request) => {
       console.error('Error verifying webhook signature:', err);
       return new Response(
         JSON.stringify({ error: "Invalid signature" }),
-        { 
+        {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
@@ -530,21 +531,21 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
     // @ts-ignore - Deno is available in the Supabase Edge Functions environment
     const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-    
+
     if (!supabaseUrl || !supabaseServiceRoleKey) {
-      console.error('Missing Supabase credentials:', { 
-        hasUrl: !!supabaseUrl, 
-        hasServiceKey: !!supabaseServiceRoleKey 
+      console.error('Missing Supabase credentials:', {
+        hasUrl: !!supabaseUrl,
+        hasServiceKey: !!supabaseServiceRoleKey
       });
       return new Response(
         JSON.stringify({ error: "Supabase credentials not configured properly" }),
-        { 
+        {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
       );
     }
-    
+
     console.log('Creating Supabase client with service role key to bypass RLS');
     const supabaseClient = createClient(supabaseUrl, supabaseServiceRoleKey);
 
@@ -569,7 +570,7 @@ serve(async (req: Request) => {
         console.log(`Unhandled event type: ${event.type}`);
         return new Response(
           JSON.stringify({ message: `Unhandled event type: ${event.type}` }),
-          { 
+          {
             status: 200,
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           }
@@ -580,7 +581,7 @@ serve(async (req: Request) => {
     console.error('Error stack:', err.stack);
     return new Response(
       JSON.stringify({ error: err.message }),
-      { 
+      {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
